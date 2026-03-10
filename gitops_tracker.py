@@ -73,8 +73,9 @@ def run_oc_get_deployments() -> List[dict]:
         result = subprocess.run(
             command,
             check=False,
-            capture_output=True,
-            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
         )
     except FileNotFoundError:
         print("The 'oc' command was not found. Ensure it is installed and available in PATH.", file=sys.stderr)
