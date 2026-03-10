@@ -99,7 +99,7 @@ def run_oc_get_deployments() -> List[dict]:
 
 
 def build_deployment_records(items: List[dict], gitops_label_key: str, gitops_label_value: str) -> List[DeploymentRecord]:
-    """Convert OpenShift deployment JSON items into normalized records."""
+    """Convert only GitOps-enabled OpenShift deployments into normalized records."""
     records: List[DeploymentRecord] = []
 
     for item in items:
@@ -107,11 +107,14 @@ def build_deployment_records(items: List[dict], gitops_label_key: str, gitops_la
         labels = metadata.get("labels") or {}
         gitops_enabled = str(labels.get(gitops_label_key, "")).lower() == gitops_label_value.lower()
 
+        if not gitops_enabled:
+            continue
+
         records.append(
             DeploymentRecord(
                 namespace=metadata.get("namespace", "").strip(),
                 deployment=metadata.get("name", "").strip(),
-                status=GITOPS_STATUS if gitops_enabled else STANDARD_DEPLOYMENT_STATUS,
+                status=GITOPS_STATUS,
             )
         )
 
@@ -277,6 +280,7 @@ def main() -> None:
     validate_config()
 
     deployment_items = run_oc_get_deployments()
+    total_deployments = len(deployment_items)
     deployments = build_deployment_records(deployment_items, GITOPS_LABEL_KEY, GITOPS_LABEL_VALUE)
 
     client = get_gspread_client(SERVICE_ACCOUNT_FILE)
@@ -285,10 +289,10 @@ def main() -> None:
     existing_records = load_sheet_records(worksheet, header_map)
 
     new_rows_added, rows_updated = sync_records(worksheet, deployments, existing_records, header_map)
-    gitops_deployments = sum(1 for deployment in deployments if deployment.status == GITOPS_STATUS)
+    gitops_deployments = len(deployments)
 
     print_summary(
-        total_deployments=len(deployments),
+        total_deployments=total_deployments,
         gitops_deployments=gitops_deployments,
         new_rows_added=new_rows_added,
         rows_updated=rows_updated,
