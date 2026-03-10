@@ -25,7 +25,7 @@ SCOPES = [
 SERVICE_ACCOUNT_FILE = "/home/ADMINISTRATOR/ivtsvc/gitops-report/service-account.json"
 SPREADSHEET_ID = "1DvS8LsjNc5Lury4GiDPdyfmTX8tlTGLtka1xL12pB8w"
 WORKSHEET_NAME = "all-deployment"
-TARGET_CLUSTER_COLUMN = "OCP Core SBY"
+TARGET_CLUSTER_COLUMN = "OCP DEV"
 GITOPS_LABEL_KEY = "gitops"
 GITOPS_LABEL_VALUE = "true"
 
