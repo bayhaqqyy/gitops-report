@@ -46,6 +46,11 @@ class DeploymentRecord:
         self.status = status
 
 
+def normalize_key(namespace: str, deployment: str) -> Tuple[str, str]:
+    """Normalize lookup keys to avoid mismatches from case or extra spaces."""
+    return (namespace.strip().lower(), deployment.strip().lower())
+
+
 def validate_config() -> None:
     """Validate required script configuration before execution."""
     required_values = {
@@ -199,7 +204,7 @@ def load_sheet_records(
         if not namespace or not deployment:
             continue
 
-        records[(namespace, deployment)] = {
+        records[normalize_key(namespace, deployment)] = {
             "row_number": row_number,
             "target_value": target_value,
         }
@@ -239,7 +244,7 @@ def sync_records(
     target_cluster_column = header_map[TARGET_CLUSTER_COLUMN]
 
     for record in deployments:
-        key = (record.namespace, record.deployment)
+        key = normalize_key(record.namespace, record.deployment)
         current = existing_records.get(key)
 
         if current is None:
