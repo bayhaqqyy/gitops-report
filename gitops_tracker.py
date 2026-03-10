@@ -5,12 +5,9 @@ Synchronize OpenShift deployment GitOps status with the all-deployment sheet.
 Update the configuration values below before running the script.
 """
 
-from __future__ import annotations
-
 import json
 import subprocess
 import sys
-from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import gspread
@@ -40,11 +37,13 @@ GITOPS_STATUS = "GitOps"
 STANDARD_DEPLOYMENT_STATUS = "Standard Deployment"
 
 
-@dataclass(frozen=True)
 class DeploymentRecord:
-    namespace: str
-    deployment: str
-    status: str
+    """Simple deployment record container compatible with older Python versions."""
+
+    def __init__(self, namespace: str, deployment: str, status: str) -> None:
+        self.namespace = namespace
+        self.deployment = deployment
+        self.status = status
 
 
 def validate_config() -> None:
