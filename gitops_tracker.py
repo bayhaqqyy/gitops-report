@@ -23,7 +23,7 @@ SCOPES = [
 
 # Script configuration.
 SERVICE_ACCOUNT_FILE = "/home/ADMINISTRATOR/ivtsvc/gitops-report/service-account.json"
-SPREADSHEET_NAME = "Automate List Deployment & DC all cluster OCP"
+SPREADSHEET_ID = "1DvS8LsjNc5Lury4GiDPdyfmTX8tlTGLtka1xL12pB8w"
 WORKSHEET_NAME = "all-deployment"
 TARGET_CLUSTER_COLUMN = "OCP Core SBY"
 GITOPS_LABEL_KEY = "gitops"
@@ -50,7 +50,7 @@ def validate_config() -> None:
     """Validate required script configuration before execution."""
     required_values = {
         "SERVICE_ACCOUNT_FILE": SERVICE_ACCOUNT_FILE,
-        "SPREADSHEET_NAME": SPREADSHEET_NAME,
+        "SPREADSHEET_ID": SPREADSHEET_ID,
         "WORKSHEET_NAME": WORKSHEET_NAME,
         "TARGET_CLUSTER_COLUMN": TARGET_CLUSTER_COLUMN,
         "GITOPS_LABEL_KEY": GITOPS_LABEL_KEY,
@@ -132,13 +132,16 @@ def get_gspread_client(service_account_file: str) -> gspread.Client:
         sys.exit(1)
 
 
-def open_worksheet(client: gspread.Client, spreadsheet_name: str, worksheet_name: str) -> gspread.Worksheet:
+def open_worksheet(client: gspread.Client, spreadsheet_id: str, worksheet_name: str) -> gspread.Worksheet:
     """Open the target worksheet from the spreadsheet."""
     try:
-        spreadsheet = client.open(spreadsheet_name)
+        spreadsheet = client.open_by_key(spreadsheet_id)
         return spreadsheet.worksheet(worksheet_name)
     except SpreadsheetNotFound:
-        print(f"Google Sheet not found: {spreadsheet_name}", file=sys.stderr)
+        print(
+            "Google Sheet not found or not shared with the service account: {0}".format(spreadsheet_id),
+            file=sys.stderr,
+        )
         sys.exit(1)
     except WorksheetNotFound:
         print(f"Worksheet not found: {worksheet_name}", file=sys.stderr)
@@ -277,7 +280,7 @@ def main() -> None:
     deployments = build_deployment_records(deployment_items, GITOPS_LABEL_KEY, GITOPS_LABEL_VALUE)
 
     client = get_gspread_client(SERVICE_ACCOUNT_FILE)
-    worksheet = open_worksheet(client, SPREADSHEET_NAME, WORKSHEET_NAME)
+    worksheet = open_worksheet(client, SPREADSHEET_ID, WORKSHEET_NAME)
     header_map = get_header_map(worksheet)
     existing_records = load_sheet_records(worksheet, header_map)
 
