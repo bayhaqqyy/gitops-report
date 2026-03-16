@@ -258,42 +258,24 @@ def sync_records(
     added_items: List[str] = []
     updated_items: List[str] = []
     target_cluster_column = header_map[TARGET_CLUSTER_COLUMN]
-    total_gitops = len(deployments)
 
-    for index, record in enumerate(deployments, start=1):
+    for record in deployments:
         key = normalize_key(record.namespace, record.deployment)
         current = existing_records.get(key)
-        gitops_percentage = 0.0
-
-        if total_deployments:
-            gitops_percentage = (float(total_gitops) / float(total_deployments)) * 100.0
-
-        print(
-            "[GitOps {0:.2f}%] Processing {1}/{2}: {3}/{4}".format(
-                gitops_percentage,
-                index,
-                total_gitops,
-                record.namespace,
-                record.deployment,
-            )
-        )
 
         if current is None:
             rows_to_add.append(build_new_row(record, header_map, max_number + added_count + 1))
             added_count += 1
             added_items.append("{0}/{1}".format(record.namespace, record.deployment))
-            print("  -> row not found, queued for append")
             continue
 
         if current.get("target_value", "") == record.status:
-            print("  -> row found, cluster column already GitOps")
             continue
 
         row_number = int(current["row_number"])
         cells_to_update.append(gspread.Cell(row=row_number, col=target_cluster_column, value=record.status))
         updated_count += 1
         updated_items.append("{0}/{1}".format(record.namespace, record.deployment))
-        print("  -> row found, queued for update")
 
     try:
         if rows_to_add:
