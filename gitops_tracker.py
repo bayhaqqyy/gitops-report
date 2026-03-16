@@ -70,11 +70,6 @@ def validate_config() -> None:
         sys.exit(1)
 
 
-def log_step(message: str) -> None:
-    """Print execution progress immediately."""
-    print(message, flush=True)
-
-
 def run_oc_get_deployments() -> List[dict]:
     """Run the oc command and return deployment items from the cluster."""
     command = ["oc", "get", "deploy", "-A", "-o", "json"]
@@ -453,24 +448,15 @@ def main() -> None:
     """Run the full sync process."""
     validate_config()
 
-    log_step("Step 1/6: Fetching deployments from OpenShift...")
     deployment_items = run_oc_get_deployments()
     total_deployments = len(deployment_items)
-    log_step("  -> found {0} deployments".format(total_deployments))
-
-    log_step("Step 2/6: Filtering GitOps deployments...")
     deployments = build_deployment_records(deployment_items, GITOPS_LABEL_KEY, GITOPS_LABEL_VALUE)
-    log_step("  -> found {0} GitOps deployments".format(len(deployments)))
 
-    log_step("Step 3/6: Authenticating to Google Sheets...")
     client = get_gspread_client(SERVICE_ACCOUNT_FILE)
-    log_step("Step 4/6: Opening worksheet...")
     worksheet = open_worksheet(client, SPREADSHEET_ID, WORKSHEET_NAME)
     header_map = get_header_map(worksheet)
-    log_step("Step 5/6: Reading existing sheet data...")
     existing_records, max_number = load_sheet_records(worksheet, header_map)
 
-    log_step("Step 6/6: Synchronizing sheet...")
     new_rows_added, rows_updated, added_items, updated_items = sync_records(
         worksheet,
         deployments,
@@ -479,7 +465,6 @@ def main() -> None:
         max_number,
         total_deployments,
     )
-    log_step("  -> applying table layout...")
     apply_table_layout(worksheet, header_map)
     gitops_deployments = len(deployments)
 
