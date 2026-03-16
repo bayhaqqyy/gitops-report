@@ -225,18 +225,24 @@ def build_new_row(record: DeploymentRecord, header_map: Dict[str, int], sequence
     """Create a new row matching the existing sheet structure."""
     max_column = max(header_map.values())
     row = [""] * max_column
+    excluded_columns = set()
 
     if "NO" in header_map:
         row[header_map["NO"] - 1] = str(sequence_number)
+        excluded_columns.add(header_map["NO"] - 1)
 
     row[header_map[NAMESPACE_HEADER] - 1] = record.namespace
     row[header_map[DEPLOYMENT_HEADER] - 1] = record.deployment
+    excluded_columns.add(header_map[NAMESPACE_HEADER] - 1)
+    excluded_columns.add(header_map[DEPLOYMENT_HEADER] - 1)
 
-    for header, column_index in header_map.items():
-        if header in (NAMESPACE_HEADER, DEPLOYMENT_HEADER, "NO", "BIA PRIORITAS"):
+    if "BIA PRIORITAS" in header_map:
+        excluded_columns.add(header_map["BIA PRIORITAS"] - 1)
+
+    for column_index in range(max_column):
+        if column_index in excluded_columns:
             continue
-
-        row[column_index - 1] = NOT_DEPLOYED_VALUE
+        row[column_index] = NOT_DEPLOYED_VALUE
 
     row[header_map[TARGET_CLUSTER_COLUMN] - 1] = record.status
     return row
