@@ -248,23 +248,29 @@ def sync_records(
     existing_records: Dict[Tuple[str, str], Dict[str, object]],
     header_map: Dict[str, int],
     max_number: int,
-) -> Tuple[int, int]:
+    total_deployments: int,
+) -> Tuple[int, int, List[str], List[str]]:
     """Insert new rows and update the current cluster column for existing rows."""
     rows_to_add: List[List[str]] = []
     cells_to_update: List[gspread.Cell] = []
     added_count = 0
     updated_count = 0
+    added_items: List[str] = []
+    updated_items: List[str] = []
     target_cluster_column = header_map[TARGET_CLUSTER_COLUMN]
     total_gitops = len(deployments)
 
     for index, record in enumerate(deployments, start=1):
         key = normalize_key(record.namespace, record.deployment)
         current = existing_records.get(key)
-        progress = int((index * 100) / total_gitops) if total_gitops else 100
+        gitops_percentage = 0.0
+
+        if total_deployments:
+            gitops_percentage = (float(total_gitops) / float(total_deployments)) * 100.0
 
         print(
-            "[{0:>3}%] Processing {1}/{2}: {3}/{4}".format(
-                progress,
+            "[GitOps {0:.2f}%] Processing {1}/{2}: {3}/{4}".format(
+                gitops_percentage,
                 index,
                 total_gitops,
                 record.namespace,
@@ -275,6 +281,7 @@ def sync_records(
         if current is None:
             rows_to_add.append(build_new_row(record, header_map, max_number + added_count + 1))
             added_count += 1
+            added_items.append("{0}/{1}".format(record.namespace, record.deployment))
             print("  -> row not found, queued for append")
             continue
 
@@ -285,6 +292,7 @@ def sync_records(
         row_number = int(current["row_number"])
         cells_to_update.append(gspread.Cell(row=row_number, col=target_cluster_column, value=record.status))
         updated_count += 1
+        updated_items.append("{0}/{1}".format(record.namespace, record.deployment))
         print("  -> row found, queued for update")
 
     try:
@@ -299,7 +307,7 @@ def sync_records(
         print(f"Failed to update Google Sheet: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    return added_count, updated_count
+    return added_count, updated_count, added_items, updated_items
 
 
 def apply_new_row_formatting(
@@ -413,12 +421,39 @@ def apply_table_layout(worksheet: gspread.Worksheet, header_map: Dict[str, int])
         sys.exit(1)
 
 
-def print_summary(total_deployments: int, gitops_deployments: int, new_rows_added: int, rows_updated: int) -> None:
+def print_summary(
+    total_deployments: int,
+    gitops_deployments: int,
+    new_rows_added: int,
+    rows_updated: int,
+    added_items: List[str],
+    updated_items: List[str],
+) -> None:
     """Print the required sync summary."""
+    gitops_percentage = 0.0
+
+    if total_deployments:
+        gitops_percentage = (float(gitops_deployments) / float(total_deployments)) * 100.0
+
     print(f"Total Deployments: {total_deployments}")
     print(f"GitOps Deployments: {gitops_deployments}")
+    print("GitOps Percentage: {0:.2f}%".format(gitops_percentage))
     print(f"New Rows Added: {new_rows_added}")
     print(f"Rows Updated: {rows_updated}")
+
+    print("Added Deployments:")
+    if added_items:
+        for item in added_items:
+            print(" - {0}".format(item))
+    else:
+        print(" - None")
+
+    print("Updated Deployments:")
+    if updated_items:
+        for item in updated_items:
+            print(" - {0}".format(item))
+    else:
+        print(" - None")
 
 
 def main() -> None:
@@ -434,7 +469,14 @@ def main() -> None:
     header_map = get_header_map(worksheet)
     existing_records, max_number = load_sheet_records(worksheet, header_map)
 
-    new_rows_added, rows_updated = sync_records(worksheet, deployments, existing_records, header_map, max_number)
+    new_rows_added, rows_updated, added_items, updated_items = sync_records(
+        worksheet,
+        deployments,
+        existing_records,
+        header_map,
+        max_number,
+        total_deployments,
+    )
     apply_table_layout(worksheet, header_map)
     gitops_deployments = len(deployments)
 
@@ -443,6 +485,8 @@ def main() -> None:
         gitops_deployments=gitops_deployments,
         new_rows_added=new_rows_added,
         rows_updated=rows_updated,
+        added_items=added_items,
+        updated_items=updated_items,
     )
 
 
